@@ -32,3 +32,5 @@ g# Prerequisites
 *.app
 *.dSYM
 solution
+
+.vscode

@@ -1,59 +1,130 @@
-#include <iostream>
-#include <fstream>
-#include <string>
 #include <vector>
-#include <algorithm>
-#include <cmath>
-#include <map>
+#include <fstream>
 #include <sstream>
+#include <iostream>
+#include <unordered_set>
 
-int main() {
-	std::string file_path = "./input.txt";
-	std::ifstream infile(file_path);
+#define DEPTH 140
+#define WIDTH 140
 
-	if (!infile.is_open()) {
-		std::cerr << "Error: Could not open the file." << std::endl;
-		return 1;
-	}
+char GRID[DEPTH][WIDTH];
+bool VISITED[DEPTH][WIDTH];
 
-	int num;
-	int count;
-	int errorsCount;
-	int lineNums[100];
-	int safeCountPartOne = 0;
-	int safeCountPartTwo = 0;
+std::vector<std::pair<int, int>> DIRECTIONS{{-1, 0}, {0, 1}, {1, 0}, {0, -1}};
 
-	std::string line;
-	while (std::getline(infile, line)) {
-		std::stringstream ss(line);
-		num = 0;
-		count = 0;
-		errorsCount = 0;
-		std::memset(lineNums, 0, sizeof(lineNums));
+bool inside_grid(int row, int col)
+{
+    return 0 <= row && row < DEPTH && 0 <= col && col < WIDTH;
+}
 
-		while (ss >> num) {
-			lineNums[count++] = num;
-		}
+void dfs(int row, int col, int &area, int &perimeter)
+{
+    VISITED[row][col] = true;
+    area++;
+    for (const auto &[x, y] : DIRECTIONS)
+    {
+        int r = row + x;
+        int c = col + y;
 
-		int order = 0;
-		for(int i = 1; i < count; ++i) {
-			int diff = lineNums[i] - lineNums[i - 1];
-			int absDiff = std::abs(diff);
-			
-			if(absDiff < 1 || absDiff > 3) ++errorsCount;
-			else if(diff < 0 && order > 0) ++errorsCount;
-			else if(diff > 0 && order < 0)  ++errorsCount;
-			else if(order == 0 && diff < 0) order = -1;
-			else if(order == 0 && diff > 0) order = 1;
-		}
+        if (!inside_grid(r, c) || GRID[r][c] != GRID[row][col])
+        {
+            perimeter++;
+        }
+        else if (!VISITED[r][c])
+        {
+            dfs(r, c, area, perimeter);
+        }
+    }
+}
 
-		if(errorsCount == 0) ++safeCountPartOne;
+void dfsPartTwo(int row, int col, int &area, int &sides)
+{
+    VISITED[row][col] = true;
+    area++;
 
-		if(errorsCount < 2) ++safeCountPartTwo;
-	}
+    auto good = [&](std::pair<int, int> direction)
+    {
+        int r = row + direction.first;
+        int c = col + direction.second;
 
-	std::cout << "Part One: " << safeCountPartOne << std::endl;
-	std::cout << "Part Two: " << safeCountPartTwo << std::endl;
+        return inside_grid(r, c) && GRID[r][c] == GRID[row][col];
+    };
 
-	return 0;
+    for (std::size_t i = 0; i < 4; ++i)
+    {
+        auto d = DIRECTIONS[i];
+        auto dd = DIRECTIONS[(i + 1) % 4];
+
+        if (!good(d) && !good(dd))
+        {
+            sides++;
+        }
+
+        if (good(d) && good(dd) && !good({d.first + dd.first, d.second + dd.second}))
+        {
+            sides++;
+        }
+    }
+
+    for (const auto &[x, y] : DIRECTIONS)
+    {
+        int r = row + x;
+        int c = col + y;
+
+        if (good({x, y}) && !VISITED[r][c])
+        {
+            dfsPartTwo(r, c, area, sides);
+        }
+    }
+}
+
+int main()
+{
+    std::string file_path = "./input.txt";
+    std::fstream infile(file_path);
+
+    int i = 0;
+    std::string line;
+    while (std::getline(infile, line))
+    {
+        int j = 0;
+        std::stringstream ss(line);
+        char c;
+        while (ss >> c)
+            GRID[i][j++] = c;
+        ++i;
+    }
+
+    int partOne = 0;
+    for (int row = 0; row < DEPTH; ++row)
+    {
+        for (int col = 0; col < WIDTH; ++col)
+        {
+            if (!VISITED[row][col])
+            {
+                int area = 0, perimeter = 0;
+                dfs(row, col, area, perimeter);
+                partOne += area * perimeter;
+            }
+        }
+    }
+
+    memset(VISITED, false, sizeof GRID);
+
+    int partTwo = 0;
+    for (int row = 0; row < DEPTH; ++row)
+    {
+        for (int col = 0; col < WIDTH; ++col)
+        {
+            if (!VISITED[row][col])
+            {
+                int area = 0, sides = 0;
+                dfsPartTwo(row, col, area, sides);
+                partTwo += area * sides;
+            }
+        }
+    }
+
+    std::cout << "Part One: " << partOne << std::endl;
+    std::cout << "Part Two: " << partTwo << std::endl;
 }
